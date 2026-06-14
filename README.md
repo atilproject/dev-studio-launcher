@@ -56,17 +56,35 @@ ln -sf ~/dev-studio-launcher/new-project.sh ~/bin/new-project.sh
 new-project.sh <project-name> [--owner <owner>] [--dir <parent-dir>]
 ```
 
+### Default location
+
+As of v0.2.0, projects are created under **`~/projects/<name>`** by default. The directory is auto-created on first use.
+
+Override priority (highest first):
+
+1. `--dir <path>` CLI option
+2. `$DEV_STUDIO_HOME` environment variable
+3. Built-in default: `$HOME/projects`
+
 ### Examples
 
 ```bash
-# Create AtilCalculator in current dir
+# Default location: ~/projects/AtilCalculator (auto-created)
 new-project.sh AtilCalculator
 
-# Create in ~/projects
-new-project.sh book-tracker --dir ~/projects
+# Override the parent dir for one project
+new-project.sh book-tracker --dir /tmp
 
 # Use a different owner
-new-project.sh stock-watcher --owner my-org --dir /tmp
+new-project.sh stock-watcher --owner my-org
+
+# Keep all dev-studio projects under a custom namespace (set once)
+export DEV_STUDIO_HOME="$HOME/work/studio"
+new-project.sh foo            # → ~/work/studio/foo
+new-project.sh bar            # → ~/work/studio/bar
+
+# Legacy v0.1 behaviour (create in current dir):
+new-project.sh baz --dir .
 ```
 
 ### What happens
@@ -133,6 +151,7 @@ Stays in sync with `dev-studio-template`. When the template adds breaking change
 | Launcher version | Template commit | Notes |
 |---|---|---|
 | 0.1.0 | `00a7101` (P3 + P7b) | Initial launcher; A1 scope |
+| 0.2.0 | `32ea9e5` (PM Bash fix) | Default parent dir = `~/projects` (auto-created); `$DEV_STUDIO_HOME` override |
 
 ## License
 

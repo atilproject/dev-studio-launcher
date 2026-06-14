@@ -53,6 +53,7 @@ fi
 
 step()  { echo -e "${C_BLUE}${C_BOLD}[step]${C_RESET} $*"; }
 ok()    { echo -e "${C_GREEN}[ ok ]${C_RESET} $*"; }
+info()  { echo -e "${C_BLUE}[info]${C_RESET} $*"; }
 warn()  { echo -e "${C_YELLOW}[warn]${C_RESET} $*"; }
 err()   { echo -e "${C_RED}${C_BOLD}[fail]${C_RESET} $*" >&2; }
 
@@ -68,25 +69,39 @@ Arguments:
 
 Options:
   --owner <owner>    GitHub owner/org. Default: ${DEFAULT_OWNER}
-  --dir <parent>     Parent directory for the clone. Default: \$PWD
+  --dir <parent>     Parent directory for the clone.
+                     Default (in priority order):
+                       1. \$DEV_STUDIO_HOME (if set)
+                       2. \$HOME/projects (auto-created if missing)
+                     Override with --dir to use any other location.
   -h, --help         Show this help.
 
+Environment:
+  DEV_STUDIO_HOME    Override the default parent directory for all
+                     projects created by this launcher. Useful for keeping
+                     dev-studio projects under a custom namespace, e.g.
+                     export DEV_STUDIO_HOME="\$HOME/work/studio".
+
 Examples:
-  $(basename "$0") AtilCalculator
-  $(basename "$0") book-tracker --dir ~/projects
+  $(basename "$0") AtilCalculator              # → \$HOME/projects/AtilCalculator
+  $(basename "$0") book-tracker --dir .        # → \$PWD/book-tracker (legacy v0.1)
+  DEV_STUDIO_HOME=~/work $(basename "$0") foo  # → ~/work/foo
 EOF
 }
 
 # ---------- arg parse ----------
 PROJECT_NAME=""
 OWNER="$DEFAULT_OWNER"
-PARENT_DIR="$PWD"
+# Default parent directory: $DEV_STUDIO_HOME (if set), else ~/projects.
+# Override per-call with --dir.
+PARENT_DIR="${DEV_STUDIO_HOME:-$HOME/projects}"
+PARENT_DIR_EXPLICIT=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     -h|--help) usage; exit 0 ;;
     --owner) OWNER="${2:-}"; shift 2 ;;
-    --dir)   PARENT_DIR="${2:-}"; shift 2 ;;
+    --dir)   PARENT_DIR="${2:-}"; PARENT_DIR_EXPLICIT=1; shift 2 ;;
     --*) err "Unknown option: $1"; usage; exit 1 ;;
     *)
       if [[ -z "$PROJECT_NAME" ]]; then
@@ -117,10 +132,17 @@ if [[ ! "$OWNER" =~ ^[A-Za-z0-9-]{1,39}$ ]]; then
   exit 1
 fi
 
-# Resolve parent dir
+# Resolve parent dir.
+# - If --dir was explicit and missing: hard error (user intent was specific).
+# - If default path is missing: auto-create it (one-time bootstrap of ~/projects).
 if [[ ! -d "$PARENT_DIR" ]]; then
-  err "Parent directory does not exist: $PARENT_DIR"
-  exit 1
+  if [[ "$PARENT_DIR_EXPLICIT" -eq 1 ]]; then
+    err "Parent directory does not exist: $PARENT_DIR"
+    err "Create it first or omit --dir to use the default location."
+    exit 1
+  fi
+  info "Creating default parent directory: $PARENT_DIR"
+  mkdir -p "$PARENT_DIR" || { err "Failed to create: $PARENT_DIR"; exit 1; }
 fi
 PARENT_DIR="$(cd "$PARENT_DIR" && pwd)"
 CLONE_PATH="$PARENT_DIR/$PROJECT_NAME"
