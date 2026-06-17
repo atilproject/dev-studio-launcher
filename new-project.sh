@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 # new-project.sh — Bootstrap a new project from dev-studio-template.
 #
-# Scope (A1):
-#   1. Create new private repo from atilcan65/dev-studio-template
+# Scope:
+#   1. Create a new repo from atilcan65/dev-studio-template (PUBLIC by
+#      default, ADR-0016; --private opt-in)
 #   2. Clone it locally
-#   3. Run scripts/dev-studio-init.sh (placeholder render)
+#   3. Run scripts/dev-studio-init.sh (placeholder render + PROJECT_TOKEN
+#      secret + canary; the canary uses GitHub Actions which is paid on
+#      private repos — see ADR-0014 §3.5 + ADR-0016)
 #   4. Run scripts/bootstrap-labels.sh (seed 34 labels)
 #
 # Does NOT:
@@ -13,16 +16,18 @@
 #   - Open Vision Intake issue (intentionally — human writes vision body)
 #
 # Usage:
-#   ./new-project.sh <project-name> [--owner <github-owner>] [--dir <parent-dir>]
+#   ./new-project.sh <project-name> [--owner <owner>] [--dir <parent>] [--public|--private]
 #
 # Examples:
-#   ./new-project.sh AtilCalculator
+#   ./new-project.sh AtilCalculator                  # public (default, ADR-0016)
+#   ./new-project.sh secret-thing --private          # opt-in private (Actions billing!)
 #   ./new-project.sh book-tracker --dir ~/projects
 #   ./new-project.sh stock-watcher --owner atilcan65 --dir /tmp
 #
 # Defaults:
-#   --owner   atilcan65
-#   --dir     current working directory
+#   --owner       atilcan65
+#   --dir         $DEV_STUDIO_HOME or $HOME/projects
+#   visibility    public (ADR-0016)
 #
 # Exit codes:
 #   0  success
@@ -59,9 +64,9 @@ err()   { echo -e "${C_RED}${C_BOLD}[fail]${C_RESET} $*" >&2; }
 
 usage() {
   cat <<EOF
-Usage: $(basename "$0") <project-name> [--owner <owner>] [--dir <parent-dir>]
+Usage: $(basename "$0") <project-name> [--owner <owner>] [--dir <parent-dir>] [--public|--private]
 
-Creates a new private GitHub repo from the dev-studio-template, clones it,
+Creates a new GitHub repo from the dev-studio-template, clones it,
 runs the init script, and seeds labels.
 
 Arguments:
@@ -74,6 +79,12 @@ Options:
                        1. \$DEV_STUDIO_HOME (if set)
                        2. \$HOME/projects (auto-created if missing)
                      Override with --dir to use any other location.
+  --public           Create repo as public (DEFAULT, ADR-0016).
+  --private          Create repo as private. Note: PROJECT_TOKEN canary
+                     runs on GitHub Actions, which is paid on private
+                     repos. Ensure your spending limit is configured
+                     before using --private, or the init will fail with
+                     'job not started'. See ADR-0014 §3.5 + ADR-0016.
   -h, --help         Show this help.
 
 Environment:
@@ -83,9 +94,10 @@ Environment:
                      export DEV_STUDIO_HOME="\$HOME/work/studio".
 
 Examples:
-  $(basename "$0") AtilCalculator              # → \$HOME/projects/AtilCalculator
-  $(basename "$0") book-tracker --dir .        # → \$PWD/book-tracker (legacy v0.1)
-  DEV_STUDIO_HOME=~/work $(basename "$0") foo  # → ~/work/foo
+  $(basename "$0") AtilCalculator                  # public (default, ADR-0016)
+  $(basename "$0") secret-thing --private          # opt-in private (Actions billing!)
+  $(basename "$0") book-tracker --dir .            # → \$PWD/book-tracker (legacy v0.1)
+  DEV_STUDIO_HOME=~/work $(basename "$0") foo      # → ~/work/foo
 EOF
 }
 
@@ -96,12 +108,16 @@ OWNER="$DEFAULT_OWNER"
 # Override per-call with --dir.
 PARENT_DIR="${DEV_STUDIO_HOME:-$HOME/projects}"
 PARENT_DIR_EXPLICIT=0
+# Default visibility: public (ADR-0016). Override with --private.
+VISIBILITY_FLAG="--public"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     -h|--help) usage; exit 0 ;;
     --owner) OWNER="${2:-}"; shift 2 ;;
     --dir)   PARENT_DIR="${2:-}"; PARENT_DIR_EXPLICIT=1; shift 2 ;;
+    --public)  VISIBILITY_FLAG="--public";  shift ;;
+    --private) VISIBILITY_FLAG="--private"; shift ;;
     --*) err "Unknown option: $1"; usage; exit 1 ;;
     *)
       if [[ -z "$PROJECT_NAME" ]]; then
@@ -210,12 +226,18 @@ cd "$PARENT_DIR"
 
 if ! gh repo create "$OWNER/$PROJECT_NAME" \
       --template "$TEMPLATE_REPO" \
-      --private \
+      "$VISIBILITY_FLAG" \
       --clone; then
-  err "gh repo create failed"
+  err "gh repo create failed (visibility=$VISIBILITY_FLAG)"
   exit 4
 fi
-ok "repo created and cloned"
+ok "repo created and cloned (visibility=$VISIBILITY_FLAG, ADR-0016)"
+if [[ "$VISIBILITY_FLAG" == "--private" ]]; then
+  warn "Created PRIVATE. PROJECT_TOKEN canary uses GitHub Actions,"
+  warn "which is paid on private repos. If init fails with 'job not"
+  warn "started', configure your spending limit or rerun with --public."
+  warn "See ADR-0014 §3.5 + ADR-0016."
+fi
 
 cd "$CLONE_PATH"
 

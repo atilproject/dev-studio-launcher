@@ -6,7 +6,7 @@
 
 A tiny shell script (`new-project.sh`) that automates the first 3 steps of starting a new multi-agent dev studio project:
 
-1. Create a new private GitHub repo from `dev-studio-template`
+1. Create a new public GitHub repo from `dev-studio-template` (default; use `--private` to opt-in to private — see [ADR-0016](https://github.com/atilcan65/dev-studio-template/blob/main/docs/decisions/ADR-0016-public-by-default.md))
 2. Clone it locally
 3. Run `dev-studio-init.sh` (render templates) + `bootstrap-labels.sh` (seed labels)
 4. Commit + push the rendered template changes
@@ -53,8 +53,21 @@ ln -sf ~/dev-studio-launcher/new-project.sh ~/bin/new-project.sh
 ## Usage
 
 ```bash
-new-project.sh <project-name> [--owner <owner>] [--dir <parent-dir>]
+new-project.sh <project-name> [--owner <owner>] [--dir <parent-dir>] [--public|--private]
 ```
+
+### Default visibility
+
+As of v0.3.0, repos are created **public** by default. Rationale: the
+template's `dev-studio-init.sh` runs an end-to-end PROJECT_TOKEN canary on
+GitHub Actions ([ADR-0014 §3.5](https://github.com/atilcan65/dev-studio-template/blob/main/docs/decisions/ADR-0014-project-token-secret.md));
+private repos pay for Actions minutes and may fail the canary with `"job
+not started"` if a spending limit isn't configured. Public repos are free
+on Actions and never hit this wall.
+
+Use `--private` only if you've configured your GitHub spending limit
+and intentionally want a private project. See [ADR-0016](https://github.com/atilcan65/dev-studio-template/blob/main/docs/decisions/ADR-0016-public-by-default.md)
+for the full reasoning + alternatives considered.
 
 ### Default location
 
@@ -152,6 +165,7 @@ Stays in sync with `dev-studio-template`. When the template adds breaking change
 |---|---|---|
 | 0.1.0 | `00a7101` (P3 + P7b) | Initial launcher; A1 scope |
 | 0.2.0 | `32ea9e5` (PM Bash fix) | Default parent dir = `~/projects` (auto-created); `$DEV_STUDIO_HOME` override |
+| 0.3.0 | ADR-0016                 | Default repo visibility flipped to **public** (`--public`); `--private` is opt-in (Actions billing implication). See ADR-0016. |
 
 ## License
 
