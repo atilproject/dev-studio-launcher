@@ -1,12 +1,12 @@
 # dev-studio-launcher
 
-> Bootstrap new projects from [`atilcan65/dev-studio-template`](https://github.com/atilcan65/dev-studio-template) with one command.
+> Bootstrap new projects from [`atilproject/dev-studio-template`](https://github.com/atilproject/dev-studio-template) with one command.
 
 ## What
 
 A tiny shell script (`new-project.sh`) that automates the first 3 steps of starting a new multi-agent dev studio project:
 
-1. Create a new public GitHub repo from `dev-studio-template` (default; use `--private` to opt-in to private — see [ADR-0016](https://github.com/atilcan65/dev-studio-template/blob/main/docs/decisions/ADR-0016-public-by-default.md))
+1. Create a new public GitHub repo from `dev-studio-template` (default; use `--private` to opt-in to private — see [ADR-0016](https://github.com/atilproject/dev-studio-template/blob/main/docs/decisions/ADR-0016-public-by-default.md))
 2. Clone it locally
 3. Run `dev-studio-init.sh` (render templates) + `bootstrap-labels.sh` (seed labels)
 4. Commit + push the rendered template changes
@@ -42,7 +42,7 @@ And `git config --global user.name` + `user.email` must be set.
 
 ```bash
 # Clone this repo somewhere stable
-git clone https://github.com/atilcan65/dev-studio-launcher.git ~/dev-studio-launcher
+git clone https://github.com/atilproject/dev-studio-launcher.git ~/dev-studio-launcher
 
 # Symlink for global access
 mkdir -p ~/bin
@@ -60,13 +60,13 @@ new-project.sh <project-name> [--owner <owner>] [--dir <parent-dir>] [--public|-
 
 As of v0.3.0, repos are created **public** by default. Rationale: the
 template's `dev-studio-init.sh` runs an end-to-end PROJECT_TOKEN canary on
-GitHub Actions ([ADR-0014 §3.5](https://github.com/atilcan65/dev-studio-template/blob/main/docs/decisions/ADR-0014-project-token-secret.md));
+GitHub Actions ([ADR-0014 §3.5](https://github.com/atilproject/dev-studio-template/blob/main/docs/decisions/ADR-0014-project-token-secret.md));
 private repos pay for Actions minutes and may fail the canary with `"job
 not started"` if a spending limit isn't configured. Public repos are free
 on Actions and never hit this wall.
 
 Use `--private` only if you've configured your GitHub spending limit
-and intentionally want a private project. See [ADR-0016](https://github.com/atilcan65/dev-studio-template/blob/main/docs/decisions/ADR-0016-public-by-default.md)
+and intentionally want a private project. See [ADR-0016](https://github.com/atilproject/dev-studio-template/blob/main/docs/decisions/ADR-0016-public-by-default.md)
 for the full reasoning + alternatives considered.
 
 ### Default location
@@ -115,7 +115,7 @@ new-project.sh baz --dir .
 [ ok ] rendered changes pushed to main
 
 ========================================
-  ✓ Project ready: atilcan65/AtilCalculator
+  ✓ Project ready: atilproject/AtilCalculator
 ========================================
 ```
 
