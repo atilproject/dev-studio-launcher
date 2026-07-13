@@ -2,7 +2,7 @@
 # new-project.sh — Bootstrap a new project from dev-studio-template.
 #
 # Scope:
-#   1. Create a new repo from atilcan65/dev-studio-template (PUBLIC by
+#   1. Create a new repo from atilproject/dev-studio-template (PUBLIC by
 #      default, ADR-0016; --private opt-in)
 #   2. Clone it locally
 #   3. Run scripts/dev-studio-init.sh (placeholder render + PROJECT_TOKEN
@@ -22,10 +22,10 @@
 #   ./new-project.sh AtilCalculator                  # public (default, ADR-0016)
 #   ./new-project.sh secret-thing --private          # opt-in private (Actions billing!)
 #   ./new-project.sh book-tracker --dir ~/projects
-#   ./new-project.sh stock-watcher --owner atilcan65 --dir /tmp
+#   ./new-project.sh stock-watcher --owner atilproject --dir /tmp
 #
 # Defaults:
-#   --owner       atilcan65
+#   --owner       atilproject
 #   --dir         $DEV_STUDIO_HOME or $HOME/projects
 #   visibility    public (ADR-0016)
 #
@@ -41,8 +41,8 @@
 set -euo pipefail
 
 # ---------- defaults ----------
-TEMPLATE_REPO="atilcan65/dev-studio-template"
-DEFAULT_OWNER="atilcan65"
+TEMPLATE_REPO="atilproject/dev-studio-template"
+DEFAULT_OWNER="atilproject"
 
 # ---------- colors ----------
 if [[ -t 1 ]]; then
