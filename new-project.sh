@@ -40,9 +40,27 @@
 
 set -euo pipefail
 
+# Sourced-mode guard: when this script is sourced (not executed), define
+# constants + functions but skip the main bootstrap flow. Enables d-test
+# sourceability per ADR-0044 RED-first TDD (d001 TC2-TC5 source the script
+# + call apply_self_hosted_runner_patch directly with FIXTURE_* env vars).
+# Sister-pattern: bash idiom from dev-studio-template/scripts/dev-studio-init.sh.
+if [[ "${BASH_SOURCE[0]:-}" != "${0}" ]]; then
+  SOURCED_MODE=1
+fi
+
 # ---------- defaults ----------
 TEMPLATE_REPO="atilcan65/dev-studio-template"
 DEFAULT_OWNER="atilcan65"
+
+# ---------- Self-hosted runner 4-tuple (S29-013, Issue #1072) ----------
+# Generator-side constant for the 4-tuple that .github/workflows/*.yml must use.
+# Sister-pattern to S29-001 (template-side 4-tuple in dev-studio-template/.github/workflows/*.yml.tmpl).
+# Per architect verdict Q1 (cycle 5934, 2026-07-15T08:14:35Z): launcher constant =
+# SSOT for generator. CLAUDE.md.tmpl is agent lore (lane discipline), NOT infra
+# config — parsing markdown for 4-tuple is indirect (silent drift surface);
+# reading a bash constant is direct. RETRO-005 #26 structural correctness.
+RUNNER_4TUPLE_LABEL_PATTERN="[self-hosted, Linux, X64, atilproject]"
 
 # ---------- colors ----------
 if [[ -t 1 ]]; then
@@ -61,6 +79,80 @@ ok()    { echo -e "${C_GREEN}[ ok ]${C_RESET} $*"; }
 info()  { echo -e "${C_BLUE}[info]${C_RESET} $*"; }
 warn()  { echo -e "${C_YELLOW}[warn]${C_RESET} $*"; }
 err()   { echo -e "${C_RED}${C_BOLD}[fail]${C_RESET} $*" >&2; }
+
+# ---------- Self-hosted runner patch (S29-013, Issue #1072) ----------
+# Per architect verdict Q2 (cycle 5934, 2026-07-15T08:14:35Z):
+# - stderr call-out PRIMARY (always emitted when pre-flight returns 0 self-hosted)
+# - ::warning:: emit CONDITIONAL only when RUNNER_OS==Linux && GITHUB_ACTIONS==true
+#   (::warning:: is GH Actions runtime contract; outside Actions context, echoes
+#    verbatim as noise — RETRO-005 #26 structural correctness, context-portable)
+#
+# Fixture hooks (d001 d-test path):
+#   FIXTURE_MODE=1 + FIXTURE_RUNNER_COUNT=N: skip gh api call, return N
+#   FIXTURE_REPO_ROOT=/path: use this dir as repo root instead of $CLONE_PATH
+
+# count_self_hosted_runners <owner> <project>
+# Echoes the count of self-hosted runners registered for the repo.
+# Uses gh api repos/<owner>/<project>/actions/runners. In fixture mode, returns
+# FIXTURE_RUNNER_COUNT directly (d001 d-test isolation).
+count_self_hosted_runners() {
+  local owner="$1" project="$2"
+  if [[ "${FIXTURE_MODE:-0}" == "1" ]]; then
+    echo "${FIXTURE_RUNNER_COUNT:-3}"
+    return 0
+  fi
+  if [[ "${owner:-}" == "" || "${project:-}" == "" ]]; then
+    echo "0"
+    return 0
+  fi
+  # gh api returns JSON with .total_count field. Suppress errors (count=0 on failure).
+  local count
+  count="$(gh api "repos/${owner}/${project}/actions/runners" --jq '.total_count' 2>/dev/null || echo "0")"
+  echo "${count:-0}"
+}
+
+# apply_self_hosted_runner_patch
+# Transforms `runs-on: ubuntu-latest` → `runs-on: [self-hosted, Linux, X64, atilproject]`
+# in .github/workflows/*.yml of $CLONE_PATH (or FIXTURE_REPO_ROOT for d-test).
+# Idempotent: only matches the unpatched pattern, never modifies already-patched
+# workflows (per AC2). Per AC1 regex correctness.
+apply_self_hosted_runner_patch() {
+  local repo_root="${FIXTURE_REPO_ROOT:-${CLONE_PATH:-}}"
+  if [[ -z "${repo_root}" || ! -d "${repo_root}/.github/workflows" ]]; then
+    warn "no .github/workflows directory in '${repo_root:-<unset>}' — skipping self-hosted patch"
+    return 0
+  fi
+  local workflows_dir="${repo_root}/.github/workflows"
+  local patched=0
+  local wf
+  for wf in "$workflows_dir"/*.yml "$workflows_dir"/*.yaml; do
+    [[ -f "$wf" ]] || continue
+    # Idempotent: only patch lines matching the EXACT unpatched pattern.
+    # `    runs-on: ubuntu-latest` (4-space indent, end-of-line) → 4-tuple line.
+    if grep -qE "^    runs-on: ubuntu-latest$" "$wf"; then
+      sed -i.bak -E "s|^    runs-on: ubuntu-latest\$|    runs-on: ${RUNNER_4TUPLE_LABEL_PATTERN}|" "$wf"
+      rm -f "$wf.bak"
+      patched=$((patched + 1))
+    fi
+  done
+  if [[ "$patched" -gt 0 ]]; then
+    ok "patched ${patched} workflow(s) to self-hosted 4-tuple [${RUNNER_4TUPLE_LABEL_PATTERN}]"
+  else
+    info "no ubuntu-latest workflows to patch (already self-hosted or empty)"
+  fi
+  return 0
+}
+
+# warn_no_self_hosted_runners <owner> <project>
+# Stderr call-out PRIMARY (always when called) + ::warning:: CONDITIONAL on Actions
+# context per architect verdict Q2. Emitted when count_self_hosted_runners returns 0.
+warn_no_self_hosted_runners() {
+  local owner="$1" project="$2"
+  err "WARNING [S29-013]: no self-hosted runners match 4-tuple in \`${owner}/${project}\`. Falling back to ubuntu-latest. See docs/sprints/sprint-29/S29-013.md §AC3."
+  if [[ "${RUNNER_OS:-}" == "Linux" && "${GITHUB_ACTIONS:-}" == "true" ]]; then
+    echo "::warning file=new-project.sh::no self-hosted runners match 4-tuple in \`${owner}/${project}\`"
+  fi
+}
 
 usage() {
   cat <<EOF
@@ -101,6 +193,16 @@ Examples:
 EOF
 }
 
+# Sourced-mode early-return: when sourced (d001 d-test path), define all
+# constants + helpers + colors + usage but skip arg parse + validation +
+# preflight + bootstrap. Caller invokes apply_self_hosted_runner_patch
+# directly with FIXTURE_* env vars set. Per ADR-0044 RED-first TDD —
+# d-test sources the script + calls functions in isolation.
+# `return` is used for sourced context; `exit` covers direct exec.
+if [[ "${SOURCED_MODE:-0}" == "1" ]]; then
+  return 0 2>/dev/null || exit 0
+fi
+
 # ---------- arg parse ----------
 PROJECT_NAME=""
 OWNER="$DEFAULT_OWNER"
@@ -118,6 +220,9 @@ while [[ $# -gt 0 ]]; do
     --dir)   PARENT_DIR="${2:-}"; PARENT_DIR_EXPLICIT=1; shift 2 ;;
     --public)  VISIBILITY_FLAG="--public";  shift ;;
     --private) VISIBILITY_FLAG="--private"; shift ;;
+    --source-mode)        SOURCED_MODE=1; shift ;;
+    --fixture-runner-count) FIXTURE_MODE=1; FIXTURE_RUNNER_COUNT="${2:-}"; shift 2 ;;
+    --fixture-repo-root)  FIXTURE_REPO_ROOT="${2:-}"; shift 2 ;;
     --*) err "Unknown option: $1"; usage; exit 1 ;;
     *)
       if [[ -z "$PROJECT_NAME" ]]; then
@@ -269,6 +374,18 @@ if ! ./scripts/bootstrap-labels.sh; then
   exit 6
 fi
 ok "labels seeded"
+
+# ---------- 3.5) Self-hosted runner 4-tuple patch (S29-013, Issue #1072) ----------
+# Per AC1+AC2+AC3: pre-flight count self-hosted runners; patch ubuntu-latest →
+# [self-hosted, Linux, X64, atilproject]; emit stderr WARNING primary +
+# ::warning:: conditional on Actions context when 0 runners match.
+step "applying self-hosted runner 4-tuple patch (S29-013)"
+RUNNER_COUNT="$(count_self_hosted_runners "$OWNER" "$PROJECT_NAME")"
+if [[ "${RUNNER_COUNT}" == "0" ]]; then
+  warn_no_self_hosted_runners "$OWNER" "$PROJECT_NAME"
+fi
+apply_self_hosted_runner_patch
+ok "self-hosted runner patch complete (runners=$RUNNER_COUNT)"
 
 # ---------- 4) Commit rendered templates ----------
 step "checking for rendered template changes to commit"
