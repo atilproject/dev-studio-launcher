@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  lint-and-test:
+    name: Lint & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Detect shell source
+        id: check-shell
+        run: |
+          if [ -f new-project.sh ] || [ -d scripts ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run d001 d-test
+        if: steps.check-shell.outputs.exists == 'true'
+        run: bash tests/d001-launcher-self-hosted-runner-patch.sh
+
+      - name: Syntax check new-project.sh
+        if: steps.check-shell.outputs.exists == 'true'
+        run: bash -n new-project.sh
+
+      - name: No source yet
+        if: steps.check-shell.outputs.exists == 'false'
+        run: echo "📦 No new-project.sh yet — repo scaffold only. CI will run actual checks once code is added."
+
+  conventional-commits:
+    name: Conventional Commits
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Check PR title
+        uses: amannn/action-semantic-pull-request@e32d7e603df1aa1ba07e981f2a23455dee596825 # v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            chore
+            docs
+            refactor
+            test
+            ci
+            perf
+            build
+            revert
