@@ -166,7 +166,12 @@ Stays in sync with `dev-studio-template`. When the template adds breaking change
 | 0.1.0 | `00a7101` (P3 + P7b) | Initial launcher; A1 scope |
 | 0.2.0 | `32ea9e5` (PM Bash fix) | Default parent dir = `~/projects` (auto-created); `$DEV_STUDIO_HOME` override |
 | 0.3.0 | ADR-0016                 | Default repo visibility flipped to **public** (`--public`); `--private` is opt-in (Actions billing implication). See ADR-0016. |
+| 0.4.0 | (CI workflow ship)        | `ci.yml` runs `tests/d001-launcher-self-hosted-runner-patch.sh` on push + PR; SHA-pinned actions per ADR-0027. Now CI-tested. Sister-pattern: tmpl#147+148. |
 
 ## License
 
 MIT.
+
+---
+
+*v0.4.0 — now CI-tested.*
