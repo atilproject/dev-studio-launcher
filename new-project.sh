@@ -347,6 +347,16 @@ fi
 cd "$CLONE_PATH"
 
 # ---------- 2) Init (placeholder render) ----------
+# AC2 (Issue #14, S32-XXX-D): verify the template-clone path creates
+# `state/tasklists/` + adds `state/tasklists/*.md` to `.gitignore`. This is
+# TEMPLATE-side responsibility — `scripts/dev-studio-init.sh` from
+# atilproject/dev-studio-template handles directory + gitignore creation
+# per ADR-0073 (sister: calc ADR-0072). The launcher itself does NOT
+# directly manage task-list state; template reference is sufficient.
+# Owner directive 2026-07-19: "kod mirror yok" — no scripts/ files mirrored
+# from template; template clone produces the directory automatically.
+# Verify path: after bootstrap, $CLONE_PATH/state/tasklists/ exists + is
+# gitignored. No code action required from this launcher.
 step "running dev-studio-init.sh"
 if [[ ! -x "scripts/dev-studio-init.sh" ]]; then
   err "scripts/dev-studio-init.sh missing or not executable"

@@ -4,6 +4,33 @@ All notable changes to this project are recorded here. The format is based
 on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1] - 2026-07-23
+
+### Added
+
+- **README "Task-list Persistence" section** ([atilproject/dev-studio-launcher#14](https://github.com/atilproject/dev-studio-launcher/issues/14), S32-XXX-D):
+  Short explanation of the per-project `state/tasklists/` directory that
+  `scripts/dev-studio-init.sh` (template-side) creates at clone time +
+  registers in `.gitignore`. Per [ADR-0073](https://github.com/atilproject/dev-studio-template/blob/main/docs/decisions/ADR-0073-tasklist-persistence-and-watchdog-tuning-revision.md)
+  (sister: [ADR-0072](https://github.com/atilcan65/AtilCalculator/blob/main/docs/decisions/ADR-0072-tasklist-persistence-and-watchdog-tuning-revision.md)).
+
+- **`new-project.sh` AC2 verify** ([atilproject/dev-studio-launcher#14](https://github.com/atilproject/dev-studio-launcher/issues/14)):
+  Documentation comment block at the `running dev-studio-init.sh` step
+  noting template-side responsibility for `state/tasklists/` creation.
+  No code action — template clone already handles it per ADR-0073.
+
+### Changed
+
+- **Version bump** v0.4.0 → v0.4.1 (README footer + Versioning table).
+
+### Notes
+
+- Owner directive 2026-07-19: "kod mirror yok (template'den geliyor önerin
+  uygun). Launcher agent çalıştırmıyor, template referans yeterli."
+  Doc-only sync — no scripts/ files mirrored from template.
+- Sister-pattern: tmpl#192 (S32-XXX-B impl canonical) + calc#1173
+  (S32-XXX-C forward-port mirror). Both merged 2026-07-19.
+
 ## [0.4.0] - 2026-07-18
 
 ### Added
