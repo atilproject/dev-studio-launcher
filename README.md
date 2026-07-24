@@ -157,6 +157,18 @@ gh issue create --template vision-intake.yml   # kick off the agents
 | Init fails mid-way | Inspect `dev-studio-init.sh` output; the partial clone is at the dir |
 | Labels skipped | Re-run manually: `cd <project> && ./scripts/bootstrap-labels.sh` |
 
+## Task-list Persistence
+
+The launcher's bootstrap flow (via `dev-studio-init.sh` from the template) creates a per-project `state/tasklists/` directory at clone time and registers `state/tasklists/*.md` in `.gitignore`. This is template-side per [ADR-0073](https://github.com/atilproject/dev-studio-template/blob/main/docs/decisions/ADR-0073-tasklist-persistence-and-watchdog-tuning-revision.md) (sister: [calc ADR-0072](https://github.com/atilcan65/AtilCalculator/blob/main/docs/decisions/ADR-0072-tasklist-persistence-and-watchdog-tuning-revision.md)) — the launcher itself does NOT directly manage task-list state.
+
+**Why this matters**: per-role `state/tasklists/<role>.md` files capture in-progress work so a `/clear` REPRIME can restore the agent's prior task state without losing the queue. The launcher only needs to know that the template clone produces this directory automatically — no launcher-side action is required for new projects.
+
+If a project is missing `state/tasklists/` after bootstrap, the template was likely cloned before ADR-0073 shipped. Re-render templates manually:
+
+```bash
+cd <project> && ./scripts/dev-studio-init.sh
+```
+
 ## Versioning
 
 Stays in sync with `dev-studio-template`. When the template adds breaking changes to its init script API, this launcher gets a matching version bump.
@@ -167,6 +179,7 @@ Stays in sync with `dev-studio-template`. When the template adds breaking change
 | 0.2.0 | `32ea9e5` (PM Bash fix) | Default parent dir = `~/projects` (auto-created); `$DEV_STUDIO_HOME` override |
 | 0.3.0 | ADR-0016                 | Default repo visibility flipped to **public** (`--public`); `--private` is opt-in (Actions billing implication). See ADR-0016. |
 | 0.4.0 | (CI workflow ship)        | `ci.yml` runs `tests/d001-launcher-self-hosted-runner-patch.sh` on push + PR; SHA-pinned actions per ADR-0027. Now CI-tested. Sister-pattern: tmpl#147+148. |
+| 0.4.1 | ADR-0073 doc-only sync    | README adds "Task-list Persistence" section linking ADR-0073; doc-only — no code mirror per owner directive 2026-07-19 ("kod mirror yok"). Template-side bootstrap is unchanged. Sister: calc ADR-0072. |
 
 ## License
 
@@ -174,4 +187,4 @@ MIT.
 
 ---
 
-*v0.4.0 — now CI-tested.*
+*v0.4.1 — task-list persistence doc sync (ADR-0073 sister).*
